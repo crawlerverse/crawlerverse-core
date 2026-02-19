@@ -1,0 +1,257 @@
+/**
+ * Shared Engine Types
+ *
+ * This file contains types and schemas that are shared across engine modules.
+ * It exists to break circular dependencies between state.ts and bubble.ts.
+ *
+ * DO NOT import from state.ts or bubble.ts in this file.
+ */
+
+import { z } from 'zod';
+import { ActiveEffectSchema } from './effects';
+import { ItemInstanceSchema } from './items';
+import { PerceptionTraitsSchema } from './perception-types';
+
+// --- Position ---
+
+export interface Position {
+  readonly x: number;
+  readonly y: number;
+}
+
+// --- Direction Schema ---
+
+export const DirectionSchema = z.enum([
+  'north', 'south', 'east', 'west',
+  'northeast', 'northwest', 'southeast', 'southwest'
+]);
+export type Direction = z.infer<typeof DirectionSchema>;
+
+// --- AI Metadata Schema ---
+
+export const AIMetadataSchema = z.object({
+  durationMs: z.number(),
+  outputTokens: z.number().optional(),
+  modelId: z.string().optional(),
+});
+export type AIMetadata = z.infer<typeof AIMetadataSchema>;
+
+// --- Action Schema (Discriminated Union) ---
+
+const MoveActionSchema = z.object({
+  action: z.literal('move'),
+  direction: DirectionSchema,
+  reasoning: z.string().describe('Agent reasoning for this action'),
+  aiMetadata: AIMetadataSchema.optional(),
+});
+
+const AttackActionSchema = z.object({
+  action: z.literal('attack'),
+  direction: DirectionSchema,
+  reasoning: z.string().describe('Agent reasoning for this action'),
+  aiMetadata: AIMetadataSchema.optional(),
+  /** Pre-rolled d20 value (1-20) for human player attacks with dice animation */
+  preRolledD20: z.number().int().min(1).max(20).optional(),
+});
+
+const WaitActionSchema = z.object({
+  action: z.literal('wait'),
+  reasoning: z.string().describe('Agent reasoning for this action'),
+  aiMetadata: AIMetadataSchema.optional(),
+});
+
+const PickupActionSchema = z.object({
+  action: z.literal('pickup'),
+  reasoning: z.string().describe('Agent reasoning for this action'),
+  aiMetadata: AIMetadataSchema.optional(),
+});
+
+const DropActionSchema = z.object({
+  action: z.literal('drop'),
+  itemType: z.string().min(1).describe('Template ID of item to drop'),
+  reasoning: z.string().describe('Agent reasoning for this action'),
+  aiMetadata: AIMetadataSchema.optional(),
+});
+
+const UseActionSchema = z.object({
+  action: z.literal('use'),
+  itemType: z.string().min(1).describe('Template ID of item to use'),
+  reasoning: z.string().describe('Agent reasoning for this action'),
+  aiMetadata: AIMetadataSchema.optional(),
+});
+
+const EquipActionSchema = z.object({
+  action: z.literal('equip'),
+  itemType: z.string().min(1).describe('Template ID of item to equip'),
+  reasoning: z.string().describe('Agent reasoning for this action'),
+  aiMetadata: AIMetadataSchema.optional(),
+});
+
+const EnterPortalActionSchema = z.object({
+  action: z.literal('enter_portal'),
+  reasoning: z.string().describe('Agent reasoning for this action'),
+  aiMetadata: AIMetadataSchema.optional(),
+});
+
+/**
+ * Maximum distance for any ranged attack.
+ * Set to 15 to allow room for future long-range weapons while
+ * preventing schema abuse with unreasonable values.
+ * Note: Actual range is validated against weapon.range at runtime in simulation.ts.
+ */
+export const MAX_RANGED_DISTANCE = 15;
+
+const RangedAttackActionSchema = z.object({
+  action: z.literal('ranged_attack'),
+  direction: DirectionSchema,
+  distance: z.number().int().positive().max(MAX_RANGED_DISTANCE),
+  targetName: z.string().optional(),
+  /**
+   * Optional target entity ID for precise targeting.
+   * When provided, the target is looked up directly by ID instead of using
+   * direction+distance calculation (which fails for off-axis positions).
+   * Recommended for player attacks; AI can use direction/distance.
+   */
+  targetId: z.string().optional(),
+  reasoning: z.string().describe('Agent reasoning for this action'),
+  aiMetadata: AIMetadataSchema.optional(),
+  /** Pre-rolled d20 value (1-20) for human player attacks with dice animation */
+  preRolledD20: z.number().int().min(1).max(20).optional(),
+});
+
+export const ActionSchema = z.discriminatedUnion('action', [
+  MoveActionSchema,
+  AttackActionSchema,
+  RangedAttackActionSchema,
+  WaitActionSchema,
+  PickupActionSchema,
+  DropActionSchema,
+  UseActionSchema,
+  EquipActionSchema,
+  EnterPortalActionSchema,
+]);
+export type Action = z.infer<typeof ActionSchema>;
+
+// --- Entity Types ---
+
+export const EntityTypeSchema = z.enum(['crawler', 'monster']);
+export type EntityType = z.infer<typeof EntityTypeSchema>;
+
+export const MonsterTypeIdSchema = z.enum([
+  'rat', 'goblin', 'goblin_archer', 'bat',  // Tier 1
+  'orc', 'skeleton', 'snake',               // Tier 2
+  'troll', 'minotaur', 'demon',             // Tier 3
+]);
+export type MonsterTypeId = z.infer<typeof MonsterTypeIdSchema>;
+
+// Character class for crawlers (determines AI personality)
+export const CharacterClassSchema = z.enum(['warrior', 'rogue', 'mage', 'cleric']);
+export type CharacterClass = z.infer<typeof CharacterClassSchema>;
+
+// --- Behavior State ---
+
+export const BehaviorStateSchema = z.enum([
+  'patrol',   // Walking route, unaware of player
+  'alerted',  // Just spotted player (1 turn reaction)
+  'chase',    // Actively pursuing visible player
+  'hunt',     // Moving to last known position
+  'search',   // Wandering near last known position
+  'idle',     // Standing still, waiting
+]);
+export type BehaviorState = z.infer<typeof BehaviorStateSchema>;
+
+export const EntitySchema = z.object({
+  id: z.string().min(1),
+  type: EntityTypeSchema,
+  x: z.number().int(),
+  y: z.number().int(),
+  areaId: z.string().min(1),  // Which area this entity is in
+  hp: z.number().int(),
+  maxHp: z.number().int().positive(),
+  name: z.string().min(1),
+  attack: z.number().int().nonnegative(),
+  defense: z.number().int().nonnegative(),
+  speed: z.number().int().positive(),
+  // Monster type for appearance lookup (monsters only)
+  monsterTypeId: MonsterTypeIdSchema.optional(),
+  // Display character (crawlers only)
+  char: z.string().length(1).optional(),
+  // Character class for AI personality (crawlers only)
+  characterClass: CharacterClassSchema.optional(),
+  // Character backstory for AI personality (crawlers only, max 250 chars)
+  bio: z.string().max(250).optional(),
+  // Perception traits for AI observation filtering (crawlers only)
+  traits: PerceptionTraitsSchema.optional(),
+  // Vision radius for FOV calculations (defaults to DEFAULT_VISION_RADIUS if not set)
+  visionRadius: z.number().int().positive().optional(),
+  // Behavior state for AI (monsters only). Set by createMonster() based on defaultBehavior.
+  behaviorState: BehaviorStateSchema.optional(),
+  // Last known target position for hunt/search behavior
+  lastKnownTarget: z.object({
+    x: z.number().int(),
+    y: z.number().int(),
+  }).optional(),
+  // Turns remaining in search state
+  searchTurnsRemaining: z.number().int().nonnegative().optional(),
+  // Inventory fields (crawlers only)
+  inventory: z.array(ItemInstanceSchema).optional(),
+  equippedWeapon: ItemInstanceSchema.nullable().optional(),
+  equippedArmor: ItemInstanceSchema.nullable().optional(),
+  equippedOffhand: ItemInstanceSchema.nullable().optional(),
+  // Last move direction for exploration anti-oscillation (crawlers only)
+  lastMoveDirection: DirectionSchema.optional(),
+  // Active effects (buffs, debuffs, status conditions) — CRA-133
+  activeEffects: z.array(ActiveEffectSchema).optional(),
+  // Mana fields (schema only — logic in CRA-198)
+  mana: z.number().int().nonnegative().optional(),
+  maxMana: z.number().int().positive().optional(),
+}).refine(
+  (e) => e.type === 'crawler' ? e.char !== undefined : e.monsterTypeId !== undefined,
+  { message: 'Crawlers must have char, monsters must have monsterTypeId' }
+).refine(
+  (e) => {
+    // Validate state/field coherence for behavior states
+    if (e.behaviorState === 'search') {
+      return e.lastKnownTarget !== undefined && e.searchTurnsRemaining !== undefined;
+    }
+    if (e.behaviorState === 'hunt') {
+      return e.lastKnownTarget !== undefined;
+    }
+    if (e.behaviorState === 'alerted') {
+      return e.lastKnownTarget !== undefined;
+    }
+    return true;
+  },
+  { message: 'Alerted/hunt states require lastKnownTarget; search state requires lastKnownTarget and searchTurnsRemaining' }
+).refine(
+  (e) => {
+    // Only crawlers can have inventory (monsters use equippedWeapon/equippedArmor directly)
+    if (e.type === 'monster') {
+      return e.inventory === undefined;
+    }
+    return true;
+  },
+  { message: 'Inventory field is only valid for crawlers' }
+).refine(
+  (e) => e.hp <= e.maxHp,
+  { message: 'HP cannot exceed maxHp' }
+);
+
+// Derive Entity type from schema to ensure they stay in sync
+export type Entity = Readonly<z.infer<typeof EntitySchema>>;
+
+/**
+ * Type guard to check if an entity is a crawler (player-controlled).
+ * Returns a type predicate for TypeScript type narrowing.
+ */
+export function isCrawler(entity: Entity): entity is Entity & { type: 'crawler' } {
+  return entity.type === 'crawler';
+}
+
+/**
+ * Type guard to check if an entity is a monster (AI-controlled by engine).
+ * Returns a type predicate for TypeScript type narrowing.
+ */
+export function isMonster(entity: Entity): entity is Entity & { type: 'monster' } {
+  return entity.type === 'monster';
+}
