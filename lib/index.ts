@@ -1,5 +1,5 @@
 /**
- * @crawler/core - AI-native roguelike game engine
+ * @crawlerverse/core - AI-native roguelike game engine
  */
 
 export * from './engine';

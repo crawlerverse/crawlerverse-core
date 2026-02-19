@@ -39,7 +39,7 @@ OPENAI_COMPATIBLE_BASE_URL=http://localhost:1234/v1
 OPENAI_COMPATIBLE_MODEL=devstral-mini
 ```
 
-5. **Run the game**: `pnpm --filter @crawler/core dev`
+5. **Run the game**: `pnpm --filter @crawlerverse/core dev`
 
 ## Provider Configuration
 
@@ -162,7 +162,7 @@ Local model performance depends on your hardware:
 ## Programmatic Usage
 
 ```typescript
-import { getAIModel, getProviderConfig, isLocalProvider } from '@crawler/core/ai';
+import { getAIModel, getProviderConfig, isLocalProvider } from '@crawlerverse/core/ai';
 
 // Get configured model for generateObject/generateText
 const model = getAIModel();

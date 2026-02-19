@@ -6,7 +6,7 @@
  */
 
 import { z } from 'zod';
-import agentSystemPromptData from '../../../../shared/prompts/agent-system.json';
+import agentSystemPromptData from '../../shared/prompts/agent-system.json';
 
 // Re-export action schema from engine (it's the AI output format)
 export { ActionSchema, type Action } from '../engine/state';

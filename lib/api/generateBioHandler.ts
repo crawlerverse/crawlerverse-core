@@ -35,7 +35,7 @@ export interface CreateGenerateBioHandlerOptions {
  *
  * @example
  * // In app/api/generate-bio/route.ts
- * import { createGenerateBioHandler } from '@crawler/core/api';
+ * import { createGenerateBioHandler } from '@crawlerverse/core/api';
  * export const POST = createGenerateBioHandler();
  */
 export function createGenerateBioHandler(options: CreateGenerateBioHandlerOptions = {}) {

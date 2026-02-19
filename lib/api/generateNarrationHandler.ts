@@ -154,7 +154,7 @@ export interface CreateGenerateNarrationHandlerOptions {
  *
  * @example
  * // In app/api/generate-narration/route.ts
- * import { createGenerateNarrationHandler } from '@crawler/core/api';
+ * import { createGenerateNarrationHandler } from '@crawlerverse/core/api';
  * export const POST = createGenerateNarrationHandler();
  */
 export function createGenerateNarrationHandler(

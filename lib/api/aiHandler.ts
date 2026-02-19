@@ -98,7 +98,7 @@ export interface CreateAIHandlerOptions {
  *
  * @example
  * // In app/api/ai/route.ts
- * import { createAIHandler } from '@crawler/core';
+ * import { createAIHandler } from '@crawlerverse/core';
  * export const POST = createAIHandler();
  */
 export function createAIHandler(options: CreateAIHandlerOptions = {}) {

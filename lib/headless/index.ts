@@ -6,7 +6,7 @@
  *
  * @example
  * ```typescript
- * import { runHeadlessGame, AIAgent, FileTraceWriter } from '@crawler/core/headless';
+ * import { runHeadlessGame, AIAgent, FileTraceWriter } from '@crawlerverse/core/headless';
  *
  * const result = await runHeadlessGame({
  *   seed: 12345,

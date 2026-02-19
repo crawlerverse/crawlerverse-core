@@ -5,9 +5,9 @@
  * Runs games without UI for AI benchmarking and trace collection.
  *
  * Usage:
- *   pnpm --filter @crawler/core headless
- *   pnpm --filter @crawler/core headless --count 20
- *   pnpm --filter @crawler/core headless --seed 12345
+ *   pnpm --filter @crawlerverse/core headless
+ *   pnpm --filter @crawlerverse/core headless --count 20
+ *   pnpm --filter @crawlerverse/core headless --seed 12345
  */
 
 import { Command } from 'commander';
