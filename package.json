@@ -1,6 +1,6 @@
 {
   "name": "@crawlerverse/core",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": false,
   "description": "AI-native roguelike game engine with multi-agent support",
   "license": "MIT",
