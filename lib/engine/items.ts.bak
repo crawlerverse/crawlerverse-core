@@ -1,0 +1,722 @@
+/**
+ * Item Types and Schemas
+ *
+ * Defines the core data structures for the item system.
+ * Items are divided into two categories:
+ * - Consumables: Single-use items with instant effects (potions, scrolls)
+ * - Equipment: Wearable items providing persistent stat bonuses (weapons, armor)
+ *
+ * The item system uses discriminated unions for type-safe polymorphism,
+ * matching the patterns used in ActionSchema and TileSchema.
+ */
+
+import { z } from 'zod';
+import type { DungeonMap, Room } from './map';
+import { isPassable } from './map';
+
+// --- Modifier System ---
+
+/**
+ * A stat modifier that changes an entity's stats.
+ * Used by both consumables (instant healing) and equipment (stat bonuses).
+ */
+export const ModifierSchema = z.object({
+  stat: z.enum(['hp', 'maxHp', 'attack', 'defense', 'speed']),
+  delta: z.number().int(),
+});
+export type Modifier = z.infer<typeof ModifierSchema>;
+
+/**
+ * An effect bundles one or more modifiers with a duration.
+ * - 'instant': Applied once immediately (consumables)
+ * - 'while_equipped': Active only while item is equipped
+ */
+export const EffectSchema = z.object({
+  modifiers: z.array(ModifierSchema),
+  duration: z.enum(['instant', 'while_equipped']),
+});
+export type Effect = z.infer<typeof EffectSchema>;
+
+// --- Item Appearance ---
+
+/**
+ * Visual representation of an item on the map.
+ * char: Single ASCII character (roguelike tradition)
+ * color: Hex color string for rendering (#RRGGBB format)
+ */
+export const ItemAppearanceSchema = z.object({
+  char: z.string().length(1),
+  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Color must be hex format #RRGGBB'),
+});
+export type ItemAppearance = z.infer<typeof ItemAppearanceSchema>;
+
+// --- Item Templates (Discriminated Union) ---
+
+/**
+ * Base consumable template schema without refinement.
+ * Used in discriminated union (refinement at union level).
+ */
+const ConsumableTemplateBaseSchema = z.object({
+  type: z.literal('consumable'),
+  id: z.string().min(1),
+  name: z.string().min(1),
+  tier: z.number().int().positive(),
+  appearance: ItemAppearanceSchema,
+  effect: EffectSchema,
+  lore: z.string().optional(),
+});
+
+/**
+ * Consumable item template.
+ * Single-use items that are destroyed on use.
+ * Examples: health potions, mana potions, scrolls
+ */
+export const ConsumableTemplateSchema = ConsumableTemplateBaseSchema.refine(
+  (t) => t.effect.duration === 'instant',
+  { message: 'Consumables must have instant effects' }
+);
+export type ConsumableTemplate = z.infer<typeof ConsumableTemplateSchema>;
+
+/**
+ * Base equipment template schema without refinement.
+ * Used in discriminated union (refinement at union level).
+ */
+const EquipmentTemplateBaseSchema = z.object({
+  type: z.literal('equipment'),
+  id: z.string().min(1),
+  name: z.string().min(1),
+  tier: z.number().int().positive(),
+  slot: z.enum(['weapon', 'armor', 'offhand']),
+  appearance: ItemAppearanceSchema,
+  effect: EffectSchema,
+  // Ranged weapon properties (optional)
+  range: z.number().int().positive().optional(),
+  rangedType: z.enum(['bow', 'thrown']).optional(),
+  // Quiver properties (optional)
+  capacity: z.number().int().positive().optional(),
+  currentAmmo: z.number().int().nonnegative().optional(),
+  // Stackable items (thrown weapons)
+  stackable: z.boolean().optional(),
+  quantity: z.number().int().positive().optional(),
+<<<<<<< HEAD
+=======
+  lore: z.string().optional(),
+>>>>>>> origin/main
+});
+
+/**
+ * Equipment item template.
+ * Items that can be equipped to provide ongoing bonuses.
+ * Supports weapon, armor, and offhand slots.
+ *
+ * Property constraints enforced by refinement:
+ * - range and rangedType must both be present or both absent
+ * - rangedType requires slot === 'weapon'
+ * - capacity/currentAmmo require slot === 'offhand' (quiver)
+ * - stackable/quantity require rangedType === 'thrown'
+ * - currentAmmo cannot exceed capacity
+ */
+export const EquipmentTemplateSchema = EquipmentTemplateBaseSchema
+  .refine(
+    (t) => t.effect.duration === 'while_equipped',
+    { message: 'Equipment must have while_equipped effects' }
+  )
+  .refine(
+    (t) => {
+      // Ranged weapons: range requires rangedType and vice versa
+      const hasRange = t.range !== undefined;
+      const hasRangedType = t.rangedType !== undefined;
+      return hasRange === hasRangedType;
+    },
+    { message: 'Ranged weapons must have both range and rangedType, or neither' }
+  )
+  .refine(
+    (t) => {
+      // rangedType requires weapon slot
+      if (t.rangedType !== undefined && t.slot !== 'weapon') {
+        return false;
+      }
+      return true;
+    },
+    { message: 'Ranged weapons must have slot: weapon' }
+  )
+  .refine(
+    (t) => {
+      // Quiver properties only valid on offhand
+      if ((t.capacity !== undefined || t.currentAmmo !== undefined) && t.slot !== 'offhand') {
+        return false;
+      }
+      return true;
+    },
+    { message: 'Quiver properties (capacity/currentAmmo) require slot: offhand' }
+  )
+  .refine(
+    (t) => {
+      // Stackable/quantity only valid on thrown weapons
+      if ((t.stackable === true || t.quantity !== undefined) && t.rangedType !== 'thrown') {
+        return false;
+      }
+      return true;
+    },
+    { message: 'Stackable/quantity only valid for thrown weapons' }
+  )
+  .refine(
+    (t) => {
+      // currentAmmo cannot exceed capacity on quivers
+      if (t.capacity !== undefined && t.currentAmmo !== undefined) {
+        return t.currentAmmo <= t.capacity;
+      }
+      return true;
+    },
+    { message: 'currentAmmo cannot exceed capacity' }
+  );
+export type EquipmentTemplate = z.infer<typeof EquipmentTemplateSchema>;
+
+/**
+ * Discriminated union of all item templates (base schemas for union).
+ * Use the 'type' field to narrow to specific item types.
+ */
+const ItemTemplateBaseSchema = z.discriminatedUnion('type', [
+  ConsumableTemplateBaseSchema,
+  EquipmentTemplateBaseSchema,
+]);
+
+/**
+ * Validated item template schema with duration constraints.
+ * - Consumables must have 'instant' duration
+ * - Equipment must have 'while_equipped' duration
+ *
+ * @example
+ * const item = ItemTemplateSchema.parse(data);
+ * if (item.type === 'consumable') {
+ *   // TypeScript knows item is ConsumableTemplate
+ *   console.log(item.effect.duration); // 'instant'
+ * }
+ */
+export const ItemTemplateSchema = ItemTemplateBaseSchema.refine(
+  (t) => {
+    if (t.type === 'consumable') return t.effect.duration === 'instant';
+    if (t.type === 'equipment') return t.effect.duration === 'while_equipped';
+    return true;
+  },
+  (t) => ({
+    message: t.type === 'consumable'
+      ? 'Consumables must have instant effects'
+      : 'Equipment must have while_equipped effects',
+  })
+);
+export type ItemTemplate = z.infer<typeof ItemTemplateBaseSchema>;
+
+// --- Type Guards ---
+
+/**
+ * Type guard to check if a template is equipment.
+ * Enables TypeScript narrowing without type assertions.
+ *
+ * @example
+ * ```typescript
+ * const template = getItemTemplate(id);
+ * if (template && isEquipmentTemplate(template)) {
+ *   // TypeScript knows template is EquipmentTemplate
+ *   console.log(template.slot); // 'weapon' | 'armor' | 'offhand'
+ * }
+ * ```
+ */
+export function isEquipmentTemplate(template: ItemTemplate): template is EquipmentTemplate {
+  return template.type === 'equipment';
+}
+
+/**
+ * Type guard to check if a template is a consumable.
+ * Enables TypeScript narrowing without type assertions.
+ */
+export function isConsumableTemplate(template: ItemTemplate): template is ConsumableTemplate {
+  return template.type === 'consumable';
+}
+
+// --- Item Instance (in world) ---
+
+/**
+ * An item placed in the game world.
+ * References a template by ID and has a position within a specific area.
+ * This is a lightweight structure - the full item data lives in the template.
+ *
+ * For equipped items with mutable state (ammo, quantity), instance-level
+ * overrides are stored on the ItemInstance itself:
+ * - currentAmmo: Current ammo count for quivers (overrides template default)
+ * - quantity: Current count for stackable items like throwing weapons
+ */
+export const ItemInstanceSchema = z.object({
+  id: z.string().min(1),
+  templateId: z.string().min(1),
+  x: z.number().int(),
+  y: z.number().int(),
+  areaId: z.string().min(1),  // Which area this item is in
+  // Instance-level mutable state for equipped items
+  currentAmmo: z.number().int().nonnegative().optional(),
+  quantity: z.number().int().positive().optional(),
+});
+export type ItemInstance = z.infer<typeof ItemInstanceSchema>;
+
+/**
+ * Create a validated item instance.
+ * Throws if templateId doesn't exist in ITEM_TEMPLATES.
+ */
+export function createItemInstance(
+  id: string,
+  templateId: string,
+  x: number,
+  y: number,
+  areaId: string
+): ItemInstance {
+  const template = ITEM_TEMPLATES[templateId];
+  if (!template) {
+    throw new Error(
+      `Unknown item template: '${templateId}'. ` +
+      `Available templates: ${Object.keys(ITEM_TEMPLATES).join(', ')}`
+    );
+  }
+  return ItemInstanceSchema.parse({ id, templateId, x, y, areaId });
+}
+
+// --- Item Helper Functions ---
+
+/**
+ * Get first item at position in a specific area.
+ * This is the preferred function - always filters by area to prevent cross-floor bugs.
+ */
+export function getItemAtPosition(
+  items: readonly ItemInstance[],
+  x: number,
+  y: number,
+  areaId: string
+): ItemInstance | undefined {
+  return items.find(item => item.areaId === areaId && item.x === x && item.y === y);
+}
+
+/**
+ * Get all items at position in a specific area.
+ * This is the preferred function - always filters by area to prevent cross-floor bugs.
+ */
+export function getItemsAtPosition(
+  items: readonly ItemInstance[],
+  x: number,
+  y: number,
+  areaId: string
+): ItemInstance[] {
+  return items.filter(item => item.areaId === areaId && item.x === x && item.y === y);
+}
+
+
+// --- Item Template Registry ---
+
+/**
+ * Registry of all item templates.
+ * Items are organized by ID for O(1) lookup.
+ *
+ * Items by category:
+ * - 3 consumables: health_potion, greater_health_potion, elixir_of_vitality
+ * - 5 weapons: short_sword, long_sword, bastard_sword, shortbow (ranged), throwing_dagger (ranged)
+ * - 3 armor: leather_armor, chain_mail, scale_mail
+ * - 1 offhand: leather_quiver (ammo container)
+ */
+const _ITEM_TEMPLATES: Record<string, ItemTemplate> = {
+  health_potion: {
+    type: 'consumable',
+    id: 'health_potion',
+    name: 'Health Potion',
+    tier: 1,
+    appearance: { char: '!', color: '#FF6B6B' },
+    effect: {
+      modifiers: [{ stat: 'hp', delta: 5 }],
+      duration: 'instant',
+    },
+    lore: 'A ruby-red liquid that knits flesh and bone. Tastes faintly of copper and mint.',
+  },
+  short_sword: {
+    type: 'equipment',
+    id: 'short_sword',
+    name: 'Short Sword',
+    tier: 1,
+    slot: 'weapon',
+    appearance: { char: '/', color: '#A0A0A0' },
+    effect: {
+      modifiers: [{ stat: 'attack', delta: 2 }],
+      duration: 'while_equipped',
+    },
+    lore: 'A simple but reliable blade, favored by adventurers for its balance of speed and reach.',
+  },
+  long_sword: {
+    type: 'equipment',
+    id: 'long_sword',
+    name: 'Long Sword',
+    tier: 2,
+    slot: 'weapon',
+    appearance: { char: '/', color: '#4DABF7' },
+    effect: {
+      modifiers: [{ stat: 'attack', delta: 4 }],
+      duration: 'while_equipped',
+    },
+    lore: 'A finely crafted blade with a worn leather grip, passed down through generations of dungeon delvers.',
+  },
+  leather_armor: {
+    type: 'equipment',
+    id: 'leather_armor',
+    name: 'Leather Armor',
+    tier: 1,
+    slot: 'armor',
+    appearance: { char: '[', color: '#8B4513' },
+    effect: {
+      modifiers: [{ stat: 'defense', delta: 1 }],
+      duration: 'while_equipped',
+    },
+    lore: 'Hardened leather plates stitched together, offering protection without sacrificing mobility.',
+  },
+  chain_mail: {
+    type: 'equipment',
+    id: 'chain_mail',
+    name: 'Chain Mail',
+    tier: 2,
+    slot: 'armor',
+    appearance: { char: '[', color: '#C0C0C0' },
+    effect: {
+      modifiers: [{ stat: 'defense', delta: 3 }],
+      duration: 'while_equipped',
+    },
+    lore: 'Interlocking metal rings that turn aside blades, though the weight slows the wearer.',
+  },
+  greater_health_potion: {
+    type: 'consumable',
+    id: 'greater_health_potion',
+    name: 'Greater Health Potion',
+    tier: 2,
+    appearance: { char: '!', color: '#4DABF7' },
+    effect: {
+      modifiers: [{ stat: 'hp', delta: 10 }],
+      duration: 'instant',
+    },
+    lore: 'A concentrated healing draught, its crimson glow visible even through thick glass.',
+  },
+  elixir_of_vitality: {
+    type: 'consumable',
+    id: 'elixir_of_vitality',
+    name: 'Elixir of Vitality',
+    tier: 3,
+    appearance: { char: '!', color: '#FFD700' },
+    effect: {
+      modifiers: [
+        { stat: 'maxHp', delta: 10 },
+        { stat: 'hp', delta: 10 },
+      ],
+      duration: 'instant',
+    },
+    lore: 'Brewed from rare herbs found only in the deepest dungeon levels. Permanently strengthens the body.',
+  },
+  bastard_sword: {
+    type: 'equipment',
+    id: 'bastard_sword',
+    name: 'Bastard Sword',
+    tier: 3,
+    slot: 'weapon',
+    appearance: { char: '/', color: '#FFD700' },
+    effect: {
+      modifiers: [{ stat: 'attack', delta: 5 }],
+      duration: 'while_equipped',
+    },
+    lore: 'This heavy blade requires two hands to wield effectively, but rewards strength with devastating strikes.',
+  },
+  scale_mail: {
+    type: 'equipment',
+    id: 'scale_mail',
+    name: 'Scale Mail',
+    tier: 3,
+    slot: 'armor',
+    appearance: { char: '[', color: '#4A90D9' },
+    effect: {
+      modifiers: [{ stat: 'defense', delta: 4 }],
+      duration: 'while_equipped',
+    },
+    lore: 'Overlapping metal scales provide excellent protection, worn by veterans who value defense over speed.',
+  },
+  shortbow: {
+    type: 'equipment',
+    id: 'shortbow',
+    name: 'Shortbow',
+    tier: 1,
+    slot: 'weapon',
+    appearance: { char: ')', color: '#8B4513' },
+    effect: {
+      modifiers: [{ stat: 'attack', delta: 2 }],
+      duration: 'while_equipped',
+    },
+    range: 6,
+    rangedType: 'bow',
+  },
+  leather_quiver: {
+    type: 'equipment',
+    id: 'leather_quiver',
+    name: 'Leather Quiver',
+    tier: 1,
+    slot: 'offhand',
+    appearance: { char: '(', color: '#8B4513' },
+    effect: {
+      modifiers: [],
+      duration: 'while_equipped',
+    },
+    capacity: 20,
+    currentAmmo: 20,
+  },
+  throwing_dagger: {
+    type: 'equipment',
+    id: 'throwing_dagger',
+    name: 'Throwing Dagger',
+    tier: 1,
+    slot: 'weapon',
+    appearance: { char: '/', color: '#C0C0C0' },
+    effect: {
+      modifiers: [{ stat: 'attack', delta: 1 }],
+      duration: 'while_equipped',
+    },
+    range: 4,
+    rangedType: 'thrown',
+    stackable: true,
+    quantity: 5,
+  },
+  shortbow: {
+    type: 'equipment',
+    id: 'shortbow',
+    name: 'Shortbow',
+    tier: 1,
+    slot: 'weapon',
+    appearance: { char: ')', color: '#8B4513' },
+    effect: {
+      modifiers: [{ stat: 'attack', delta: 2 }],
+      duration: 'while_equipped',
+    },
+    range: 6,
+    rangedType: 'bow',
+  },
+  leather_quiver: {
+    type: 'equipment',
+    id: 'leather_quiver',
+    name: 'Leather Quiver',
+    tier: 1,
+    slot: 'offhand',
+    appearance: { char: '(', color: '#8B4513' },
+    effect: {
+      modifiers: [],
+      duration: 'while_equipped',
+    },
+    capacity: 20,
+    currentAmmo: 20,
+  },
+  throwing_dagger: {
+    type: 'equipment',
+    id: 'throwing_dagger',
+    name: 'Throwing Dagger',
+    tier: 1,
+    slot: 'weapon',
+    appearance: { char: '/', color: '#C0C0C0' },
+    effect: {
+      modifiers: [{ stat: 'attack', delta: 1 }],
+      duration: 'while_equipped',
+    },
+    range: 4,
+    rangedType: 'thrown',
+    stackable: true,
+    quantity: 5,
+  },
+};
+
+/**
+ * Immutable item template registry.
+ * Frozen to prevent accidental mutation of template definitions.
+ */
+export const ITEM_TEMPLATES: Readonly<Record<string, ItemTemplate>> = Object.freeze(_ITEM_TEMPLATES);
+
+/**
+ * Valid item template IDs.
+ * Derived from ITEM_TEMPLATES keys for type safety.
+ */
+export type ItemTemplateId = keyof typeof _ITEM_TEMPLATES;
+
+/** Get item template by ID */
+export function getItemTemplate(templateId: string): ItemTemplate | undefined {
+  return ITEM_TEMPLATES[templateId];
+}
+
+// --- Spawning Configuration ---
+
+/**
+ * Configuration for item spawning on a floor.
+ * minItems must be <= maxItems, both must be non-negative.
+ * floor must be positive (1-indexed).
+ */
+export const ItemSpawnConfigSchema = z.object({
+  minItems: z.number().int().nonnegative(),
+  maxItems: z.number().int().nonnegative(),
+  floor: z.number().int().positive(),
+}).refine(
+  (c) => c.minItems <= c.maxItems,
+  { message: 'minItems must be <= maxItems' }
+);
+export type ItemSpawnConfig = z.infer<typeof ItemSpawnConfigSchema>;
+
+export const DEFAULT_ITEM_SPAWN_CONFIG: ItemSpawnConfig = {
+  minItems: 2,
+  maxItems: 4,
+  floor: 1,
+};
+
+// --- Spawning Helpers ---
+
+/** Get templates by tier */
+function getTemplatesByTier(tier: number): ItemTemplate[] {
+  return Object.values(ITEM_TEMPLATES).filter(t => t.tier === tier);
+}
+
+/** Calculate tier weights based on floor depth */
+function getTierWeights(floor: number): Map<number, number> {
+  // Floor 1: 90% tier 1, 10% tier 2
+  // Floor 3: 70% tier 1, 30% tier 2
+  // Floor 5: 50% tier 1, 50% tier 2
+  const tier2Weight = Math.min(0.5, 0.1 + (floor - 1) * 0.1);
+  return new Map([
+    [1, 1 - tier2Weight],
+    [2, tier2Weight],
+  ]);
+}
+
+/**
+ * Select a random template from a tier.
+ * Throws with descriptive error if tier is empty.
+ */
+function selectFromTier(
+  tier: number,
+  rng: { getUniform: () => number },
+  errorContext: string
+): ItemTemplate {
+  const templates = getTemplatesByTier(tier);
+  if (templates.length === 0) {
+    throw new Error(
+      `No item templates found for tier ${tier}. ${errorContext}`
+    );
+  }
+  const index = Math.floor(rng.getUniform() * templates.length);
+  return templates[index];
+}
+
+/**
+ * Select a random template based on floor-weighted tiers.
+ * Throws if no templates exist for the selected tier.
+ */
+function selectRandomTemplate(
+  floor: number,
+  rng: { getUniform: () => number }
+): ItemTemplate {
+  const weights = getTierWeights(floor);
+  const roll = rng.getUniform();
+
+  let cumulative = 0;
+  for (const [tier, weight] of weights) {
+    cumulative += weight;
+    if (roll < cumulative) {
+      return selectFromTier(
+        tier,
+        rng,
+        'This indicates a configuration error in ITEM_TEMPLATES.'
+      );
+    }
+  }
+
+  // Fallback to tier 1
+  return selectFromTier(
+    1,
+    rng,
+    'The item system requires at least one tier 1 template to function.'
+  );
+}
+
+/** Get valid spawn rooms (exclude starting room) */
+function getSpawnRooms(map: DungeonMap): readonly Room[] {
+  return map.rooms.filter(room => !room.tags.includes('starting'));
+}
+
+/**
+ * Get random floor position within a room interior.
+ * Uses 1-tile margin from room edges to avoid spawning near walls.
+ */
+function getRandomRoomPosition(
+  map: DungeonMap,
+  room: Room,
+  exclude: Set<string>,
+  rng: { getUniform: () => number }
+): { x: number; y: number } | null {
+  const candidates: { x: number; y: number }[] = [];
+
+  // Use 1-tile margin from room edges to avoid visual overlap with walls
+  const innerLeft = room.x + 1;
+  const innerTop = room.y + 1;
+  const innerRight = room.x + room.width - 2;
+  const innerBottom = room.y + room.height - 2;
+
+  for (let y = innerTop; y <= innerBottom; y++) {
+    for (let x = innerLeft; x <= innerRight; x++) {
+      const key = `${x},${y}`;
+      if (isPassable(map, x, y) && !exclude.has(key)) {
+        candidates.push({ x, y });
+      }
+    }
+  }
+
+  if (candidates.length === 0) return null;
+  return candidates[Math.floor(rng.getUniform() * candidates.length)];
+}
+
+/**
+ * Spawn items for a floor.
+ * Returns spawned items. May return fewer than requested if spawn positions are exhausted.
+ */
+export function spawnItems(
+  map: DungeonMap,
+  config: ItemSpawnConfig,
+  excludePositions: Array<{ x: number; y: number }>,
+  rng: { getUniform: () => number },
+  areaId: string
+): ItemInstance[] {
+  const { minItems, maxItems, floor } = config;
+  const count = minItems + Math.floor(rng.getUniform() * (maxItems - minItems + 1));
+
+  const rooms = getSpawnRooms(map);
+  if (rooms.length === 0) {
+    // No non-starting rooms available for item spawning
+    return [];
+  }
+
+  const exclude = new Set(excludePositions.map(p => `${p.x},${p.y}`));
+  const items: ItemInstance[] = [];
+
+  for (let i = 0; i < count; i++) {
+    // Pick random room
+    const room = rooms[Math.floor(rng.getUniform() * rooms.length)];
+    const pos = getRandomRoomPosition(map, room, exclude, rng);
+
+    if (pos) {
+      const template = selectRandomTemplate(floor, rng);
+      // Use globally unique ID: seed-floor-index
+      items.push({
+        id: `item-${map.seed}-${floor}-${i}`,
+        templateId: template.id,
+        x: pos.x,
+        y: pos.y,
+        areaId,
+      });
+      exclude.add(`${pos.x},${pos.y}`);
+    }
+    // Note: if pos is null, we silently skip this item.
+    // This is intentional - we return fewer items than requested when
+    // spawn positions are exhausted.
+  }
+
+  return items;
+}
