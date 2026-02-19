@@ -1,4 +1,4 @@
-import type { ActiveEffect } from '../../lib/engine/effects';
+import type { ActiveEffect } from '../../lib/engine';
 
 const EFFECT_ICONS: Record<string, string> = {
   Poisoned: '💀', Burning: '🔥', Regenerating: '💚', Slowed: '🐌',

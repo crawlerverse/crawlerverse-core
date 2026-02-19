@@ -10,6 +10,7 @@ import {
   removeEffect,
   removeEffectsFromSource,
   hasEffect,
+  hasEffectById,
   getEffectsByMechanic,
   tickEffects,
   type EffectTemplateId,
@@ -642,6 +643,33 @@ describe('hasEffect', () => {
   });
 });
 
+// --- hasEffectById ---
+
+describe('hasEffectById', () => {
+  it('finds effect using lowercase template ID', () => {
+    const e1 = createActiveEffect('poisoned', { label: 'bite' });
+    const entity = makeTestEntity({ activeEffects: [e1] });
+    // Template key is 'poisoned', effect name is 'Poisoned'
+    expect(hasEffectById(entity, 'poisoned')).toBe(true);
+  });
+
+  it('returns false when effect not present', () => {
+    const entity = makeTestEntity({ activeEffects: [] });
+    expect(hasEffectById(entity, 'stunned')).toBe(false);
+  });
+
+  it('works for all template IDs', () => {
+    const entity = makeTestEntity({
+      activeEffects: Object.keys(EFFECT_TEMPLATES).map(id =>
+        createActiveEffect(id as EffectTemplateId, { label: 'test' })
+      ),
+    });
+    for (const id of Object.keys(EFFECT_TEMPLATES) as EffectTemplateId[]) {
+      expect(hasEffectById(entity, id)).toBe(true);
+    }
+  });
+});
+
 // --- getEffectsByMechanic ---
 
 describe('getEffectsByMechanic', () => {
@@ -858,5 +886,37 @@ describe('tickEffects', () => {
     expect(entity.hp).toBe(originalHp);
     expect(result.entity.hp).toBe(17);
     expect(result.entity).not.toBe(entity);
+  });
+});
+
+// --- Unimplemented mechanics (CRA-200) ---
+
+describe('forced_movement mechanic (CRA-200)', () => {
+  it.skip('feared entity moves away from source when able', () => {
+    // Expected: entity with feared effect moves 1 tile away from source position
+  });
+
+  it.skip('feared entity wastes turn when cornered', () => {
+    // Expected: no valid move away from source, turn consumed
+  });
+});
+
+describe('ai_override mechanic (CRA-200)', () => {
+  it.skip('taunted monster targets source instead of nearest crawler', () => {
+    // Expected: monster AI target selection overridden to source entity
+  });
+
+  it.skip('taunt expires when source entity dies', () => {
+    // Note: source cleanup already implemented, this tests the full flow
+  });
+});
+
+describe('visibility mechanic (CRA-200)', () => {
+  it.skip('invisible entity excluded from monster target selection', () => {
+    // Expected: monsters ignore invisible entities
+  });
+
+  it.skip('invisibility breaks when entity attacks', () => {
+    // Expected: invisible effect removed after attack action resolves
   });
 });
