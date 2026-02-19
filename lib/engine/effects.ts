@@ -187,16 +187,19 @@ const _EFFECT_TEMPLATES = {
     name: 'Feared',
     mechanic: { type: 'forced_movement', direction: 'away_from_source' } as const,
     duration: 3,
+    // TODO(CRA-200): Simulation loop integration not yet implemented — entity should move away from source
   },
   taunted: {
     name: 'Taunted',
     mechanic: { type: 'ai_override', behavior: 'target_source' } as const,
     duration: 3,
+    // TODO(CRA-200): AI targeting override not yet implemented — monster should target source entity
   },
   invisible: {
     name: 'Invisible',
     mechanic: { type: 'visibility', hidden: true } as const,
     duration: 5,
+    // TODO(CRA-200): FOV filtering not yet implemented — entity should be hidden from enemy targeting
   },
 } as const satisfies Record<string, EffectTemplate>;
 
@@ -450,10 +453,10 @@ export function tickEffects(entity: Entity): TickEffectsResult {
       const { damage } = effect.mechanic;
       if (damage > 0) {
         hp = Math.max(0, hp - damage);
-        messages.push({ text: `${entity.name} takes ${damage} ${effect.name} damage.` });
+        messages.push({ text: `${entity.name} takes ${damage} ${effect.name} damage. (${hp}/${entity.maxHp} HP)` });
         if (hp <= 0 && !died) {
           died = true;
-          messages.push({ text: `${entity.name} succumbed to ${effect.name}.` });
+          messages.push({ text: `${entity.name} succumbed to ${effect.name} (${effect.source.label}).` });
         }
       } else if (damage < 0) {
         const heal = Math.abs(damage);
