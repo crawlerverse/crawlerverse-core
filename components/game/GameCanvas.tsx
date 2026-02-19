@@ -19,7 +19,7 @@ import { computeVisibleTiles, DEFAULT_VISION_RADIUS, tileKey } from '../../lib/e
 import type { EntityId } from '../../lib/engine/scheduler';
 import type { TargetingState } from '../../lib/engine/targeting';
 import { getCurrentTargetId } from '../../lib/engine/targeting';
-import { logger } from '../../lib/logging';
+// Removed pino logger - using console for browser-side logging
 
 /** Default viewport size in tiles */
 const DEFAULT_VIEWPORT_WIDTH = 40;
@@ -161,7 +161,7 @@ export function GameCanvas({
     const viewer = viewerId ? getEntity(state, viewerId) : getPlayer(state);
     if (!viewer) {
       if (state.gameStatus.status !== 'ended') {
-        logger.warn({ turn: state.turn, viewerId }, 'Viewer entity not found during render');
+        console.warn('[GameCanvas] Viewer entity not found during render', { turn: state.turn, viewerId });
       }
       return;
     }
@@ -258,10 +258,11 @@ export function GameCanvas({
           } else {
             // Render placeholder for unknown template and log error
             display.draw(screen.sx, screen.sy, '?', '#FF00FF', BG_COLOR);
-            logger.error(
-              { templateId: item.templateId, itemId: item.id, position: { x: item.x, y: item.y } },
-              'Unknown item template - rendering placeholder'
-            );
+            console.error('[GameCanvas] Unknown item template - rendering placeholder', {
+              templateId: item.templateId,
+              itemId: item.id,
+              position: { x: item.x, y: item.y },
+            });
           }
         }
       }
@@ -340,7 +341,7 @@ export function GameCanvas({
 
     // Fallback: if no crawlers found and game is active, log warning
     if (crawlers.length === 0 && state.gameStatus.status !== 'ended') {
-      logger.warn({ turn: state.turn }, 'No crawler entities found during render');
+      console.warn('[GameCanvas] No crawler entities found during render', { turn: state.turn });
     }
   }, [state, viewerId, canvasStatus, map, actualViewportWidth, actualViewportHeight, targetingState, cameraPosition]);
 

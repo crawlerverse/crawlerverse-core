@@ -21,9 +21,7 @@ import type { Entity } from '../../lib/engine/types';
 import type { ItemInstance } from '../../lib/engine/items';
 import { getItemTemplate } from '../../lib/engine/items';
 import { MAX_INVENTORY_SIZE } from '../../lib/engine/inventory';
-import { createLogger } from '../../lib/logging';
-
-const logger = createLogger({ module: 'InventoryPanel' });
+// Removed pino logger - using console for browser-side logging
 
 interface InventoryPanelProps {
   /** The crawler entity whose inventory to display */
@@ -39,10 +37,10 @@ function getItemName(item: ItemInstance | null | undefined): string {
   if (!item) return 'Empty';
   const template = getItemTemplate(item.templateId);
   if (!template) {
-    logger.warn(
-      { templateId: item.templateId, itemId: item.id },
-      'Item template not found - possible data corruption'
-    );
+    console.warn('[InventoryPanel] Item template not found - possible data corruption', {
+      templateId: item.templateId,
+      itemId: item.id,
+    });
     return `[Unknown: ${item.templateId}]`;
   }
   return template.name;
@@ -64,29 +62,26 @@ function getStatBonus(item: ItemInstance | null | undefined): string | null {
 
   const template = getItemTemplate(item.templateId);
   if (!template) {
-    logger.warn(
-      { templateId: item.templateId, itemId: item.id },
-      'Template not found for equipped item'
-    );
+    console.warn('[InventoryPanel] Template not found for equipped item', {
+      templateId: item.templateId,
+      itemId: item.id,
+    });
     return null;
   }
 
   if (template.type !== 'equipment') {
     // This indicates a bug - equippedWeapon/equippedArmor should only hold equipment
-    logger.error(
-      { templateId: item.templateId, type: template.type, itemId: item.id },
-      'Non-equipment item in equipment slot - logic error'
-    );
+    console.error('[InventoryPanel] Non-equipment item in equipment slot - logic error', {
+      templateId: item.templateId,
+      type: template.type,
+      itemId: item.id,
+    });
     return null;
   }
 
   const modifier = template.effect.modifiers[0];
   if (!modifier) {
-    // Equipment without modifiers is technically valid but unusual
-    logger.debug(
-      { templateId: item.templateId },
-      'Equipment has no modifiers configured'
-    );
+    // Equipment without modifiers is technically valid but unusual - no need to log in production
     return null;
   }
 
@@ -126,10 +121,7 @@ function getOffhandDisplay(item: ItemInstance | null | undefined): string | null
 function filterValidItems(items: readonly ItemInstance[]): ItemInstance[] {
   return items.filter((item, index) => {
     if (!item || typeof item.id !== 'string') {
-      logger.error(
-        { index, item },
-        'Invalid item in inventory array - skipping render'
-      );
+      console.error('[InventoryPanel] Invalid item in inventory array - skipping render', { index, item });
       return false;
     }
     return true;
@@ -170,10 +162,10 @@ function EquipmentRow({
 export function InventoryPanel({ crawler }: InventoryPanelProps) {
   // Development-only type assertion
   if (process.env.NODE_ENV === 'development' && crawler.type !== 'crawler') {
-    logger.error(
-      { entityId: crawler.id, entityType: crawler.type },
-      'InventoryPanel received non-crawler entity'
-    );
+    console.error('[InventoryPanel] InventoryPanel received non-crawler entity', {
+      entityId: crawler.id,
+      entityType: crawler.type,
+    });
   }
 
   const rawInventory = crawler.inventory ?? [];

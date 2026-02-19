@@ -39,7 +39,7 @@ import { getEffectiveAttack, getEffectiveDefense } from '../../lib/engine/stats'
 import { getNextEquipment } from '../../lib/engine/equipment-cycling';
 import type { PlayerType, GameCompleteData, ErrorContext } from '../../lib/engine/callbacks';
 import { generateSessionId } from '../../lib/engine/callbacks';
-import { logger } from '../../lib/logging';
+// Removed pino logger - using console for browser-side logging
 import type { CharacterCreation } from '../../lib/engine/character-system';
 import { LocalStorageCharacterRepository } from '../../lib/engine/character-repository';
 import { DiceRollOverlay } from '../dice';
@@ -450,7 +450,7 @@ function GameInner({
       const monsters = getMonstersInArea(state, state.currentAreaId);
 
       if (!player) {
-        logger.warn({ turn: state.turn, waitingPlayerId }, 'Waiting player not found');
+        console.warn('[PlayGame] Waiting player not found', { turn: state.turn, waitingPlayerId });
         return;
       }
 
@@ -1351,7 +1351,7 @@ function PlayGameContent(props: PlayGameProps) {
       const saved = await roster.saveCharacter(pendingCharacter);
       setSavedCharacterId(saved.id);
     } catch (error) {
-      logger.error({ error }, 'Failed to save character');
+      console.error('[PlayGame] Failed to save character', error);
     }
 
     // Start the game regardless of save success
@@ -1409,7 +1409,7 @@ function PlayGameContent(props: PlayGameProps) {
       // Find the saved character to get current stats
       const savedChar = roster.characters.find((c) => c.id === savedCharacterId);
       if (!savedChar) {
-        logger.warn({ savedCharacterId }, 'Could not find saved character to update play stats');
+        console.warn('[PlayGame] Could not find saved character to update play stats', { savedCharacterId });
         return;
       }
 
@@ -1420,20 +1420,17 @@ function PlayGameContent(props: PlayGameProps) {
           maxFloorReached: Math.max(savedChar.playStats.maxFloorReached, stats.floorReached),
           monstersKilled: savedChar.playStats.monstersKilled + stats.monstersKilled,
         });
-        logger.info(
-          {
-            savedCharacterId,
-            newStats: {
-              gamesPlayed: savedChar.playStats.gamesPlayed + 1,
-              deaths: savedChar.playStats.deaths + (stats.died ? 1 : 0),
-              maxFloorReached: Math.max(savedChar.playStats.maxFloorReached, stats.floorReached),
-              monstersKilled: savedChar.playStats.monstersKilled + stats.monstersKilled,
-            },
+        console.log('[PlayGame] Updated play stats for saved character', {
+          savedCharacterId,
+          newStats: {
+            gamesPlayed: savedChar.playStats.gamesPlayed + 1,
+            deaths: savedChar.playStats.deaths + (stats.died ? 1 : 0),
+            maxFloorReached: Math.max(savedChar.playStats.maxFloorReached, stats.floorReached),
+            monstersKilled: savedChar.playStats.monstersKilled + stats.monstersKilled,
           },
-          'Updated play stats for saved character'
-        );
+        });
       } catch (error) {
-        logger.error({ error, savedCharacterId }, 'Failed to update play stats');
+        console.error('[PlayGame] Failed to update play stats', { error, savedCharacterId });
       }
     },
     [savedCharacterId, roster]
