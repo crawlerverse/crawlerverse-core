@@ -118,6 +118,25 @@ export {
   getEffectiveVisionRadius,
 } from './stats';
 
+// Effects system (CRA-133)
+export {
+  type ActiveEffect,
+  type EffectMechanic,
+  type EffectTemplateId,
+  ActiveEffectSchema,
+  EffectMechanicSchema,
+  EFFECT_TEMPLATES,
+  createActiveEffect,
+  applyEffect,
+  removeEffect,
+  removeEffectsFromSource,
+  hasEffect,
+  hasEffectById,
+  getEffectsByMechanic,
+  tickEffects,
+  resetEffectIdCounter,
+} from './effects';
+
 // Monster equipment spawning
 export {
   rollMonsterEquipment,
