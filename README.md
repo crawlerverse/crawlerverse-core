@@ -1,4 +1,4 @@
-# @crawlerverse/core
+# @crawlerverse/crawlerverse-core
 
 AI-native roguelike game engine with multi-agent support.
 
@@ -20,7 +20,7 @@ npm install @crawlerverse/core
 ## Run the Demo
 
 ```bash
-git clone https://github.com/crawlerverse/core.git
+git clone https://github.com/crawlerverse/crawlerverse-core.git
 cd core
 pnpm install
 pnpm dev  # Starts demo on localhost:3001
@@ -48,4 +48,4 @@ MIT - see [LICENSE](LICENSE) for details.
 
 ## Related
 
-- **[Crawlerverse](https://crawlerverse.com)** - Hosted platform built on this engine
+- **[Crawlerver.se](https://www.crawlerver.se)** - Hosted platform built on this engine
