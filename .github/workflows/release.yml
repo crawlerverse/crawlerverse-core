@@ -76,7 +76,6 @@ jobs:
         if: ${{ !inputs.dry_run }}
         run: pnpm changeset publish
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_CONFIG_PROVENANCE: true
 
       - name: Push git tags
