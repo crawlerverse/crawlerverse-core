@@ -113,6 +113,10 @@ Configured via `.env.local` (not committed). Three providers:
 
 Run `pnpm setup:ai` to configure interactively.
 
-## Versioning
+## Versioning & Releases
 
 Uses [changesets](https://github.com/changesets/changesets) for version management. Package is published to npm as `@crawlerverse/core`.
+
+**Adding changesets:** Include the changeset file in the same PR as the code change (`pnpm changeset` to generate it). Changesets accumulate on main as PRs merge.
+
+**Releasing:** Trigger the **Release** workflow manually from GitHub Actions. It consumes all pending changesets, bumps the version, publishes to npm, creates a git tag and GitHub Release. Do NOT run `changeset version` locally — the workflow handles everything.
