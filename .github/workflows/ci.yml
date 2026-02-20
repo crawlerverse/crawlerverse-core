@@ -5,6 +5,9 @@ on:
   push:
     branches: [main]
 
+env:
+  NEXT_TELEMETRY_DISABLED: 1
+
 jobs:
   test:
     runs-on: ubuntu-latest
