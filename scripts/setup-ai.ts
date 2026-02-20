@@ -144,14 +144,9 @@ async function configureOpenRouter(): Promise<void> {
     message: 'Which model?',
     choices: [
       {
-        value: 'mistralai/devstral-2512:free',
-        name: 'Devstral (recommended)',
-        description: '262k context, clean JSON output',
-      },
-      {
-        value: 'mistralai/mistral-small-3.1-24b-instruct:free',
-        name: 'Mistral Small 3.1',
-        description: '128k context, good structured output',
+        value: 'openrouter/free',
+        name: 'OpenRouter Free (recommended)',
+        description: 'Random free model each request — no single model dependency',
       },
       {
         value: 'meta-llama/llama-3.3-70b-instruct:free',
