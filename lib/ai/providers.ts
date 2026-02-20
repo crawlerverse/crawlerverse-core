@@ -34,7 +34,7 @@ const DEFAULT_LOCAL_MODEL = 'local-model';
  * - AI_MODEL: Override the default model for any provider
  * - AI_GATEWAY_API_KEY: Required for gateway provider
  * - OPENROUTER_API_KEY: Required for openrouter provider
- * - OPENROUTER_MODEL: Model name for OpenRouter (default: 'mistralai/devstral-2512:free')
+ * - OPENROUTER_MODEL: Model name for OpenRouter (default: 'openrouter/free')
  * - OPENAI_COMPATIBLE_BASE_URL: Required for openai-compatible provider
  * - OPENAI_COMPATIBLE_API_KEY: Optional API key (some local servers don't need it)
  * - OPENAI_COMPATIBLE_MODEL: Model name for local server (default: 'local-model')
@@ -92,7 +92,7 @@ export function getProviderConfig(): ProviderConfig {
     return {
       provider: 'openrouter',
       apiKey,
-      model: process.env.AI_MODEL || process.env.OPENROUTER_MODEL || 'mistralai/devstral-2512:free',
+      model: process.env.AI_MODEL || process.env.OPENROUTER_MODEL || 'openrouter/free',
     };
   }
 

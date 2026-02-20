@@ -51,7 +51,7 @@ OPENAI_COMPATIBLE_MODEL=devstral-mini
 | `AI_MODEL` | No | Override model for any provider |
 | `AI_GATEWAY_API_KEY` | For gateway | Vercel AI Gateway API key |
 | `OPENROUTER_API_KEY` | For openrouter | OpenRouter API key |
-| `OPENROUTER_MODEL` | No | Model name (default: `mistralai/devstral-2512:free`) |
+| `OPENROUTER_MODEL` | No | Model name (default: `openrouter/free`) |
 | `OPENAI_COMPATIBLE_BASE_URL` | For openai-compatible | Local server URL |
 | `OPENAI_COMPATIBLE_API_KEY` | No | API key (most local servers don't need one) |
 | `OPENAI_COMPATIBLE_MODEL` | No | Model name (default: `local-model`) |
@@ -91,7 +91,7 @@ Compatible servers:
 ```bash
 AI_PROVIDER=openrouter
 OPENROUTER_API_KEY=sk-or-v1-xxx
-OPENROUTER_MODEL=mistralai/devstral-2512:free
+OPENROUTER_MODEL=openrouter/free
 ```
 
 **Option 2: OpenAI-compatible** (works the same for most models):
@@ -99,21 +99,19 @@ OPENROUTER_MODEL=mistralai/devstral-2512:free
 AI_PROVIDER=openai-compatible
 OPENAI_COMPATIBLE_BASE_URL=https://openrouter.ai/api/v1
 OPENAI_COMPATIBLE_API_KEY=sk-or-v1-xxx
-OPENAI_COMPATIBLE_MODEL=mistralai/devstral-2512:free
+OPENAI_COMPATIBLE_MODEL=openrouter/free
 ```
 
 **Free tier rate limits:**
 - Without credits: 50 requests/day
 - With $10+ credits: 1,000 requests/day, 20 requests/minute
 
-Free models are identified by the `:free` suffix. **Important:** Not all models work well with structured JSON output.
+The default model `openrouter/free` routes each request to a random free model — no single model dependency. You can also pin a specific free model (identified by the `:free` suffix). **Important:** Not all models work well with structured JSON output.
 
 | Model | Status | Notes |
 |-------|--------|-------|
-| `mistralai/devstral-2512:free` | ✅ Works | 262k context, clean JSON (recommended) |
-| `mistralai/mistral-small-3.1-24b-instruct:free` | ✅ Works | 128k context, good structured output |
+| `openrouter/free` | ✅ Default | Random free model each request |
 | `meta-llama/llama-3.3-70b-instruct:free` | ✅ Works | 131k context, reliable |
-| `google/gemini-2.0-flash-exp:free` | ❌ Broken | Wraps JSON in markdown code blocks |
 
 Browse all free models: [openrouter.ai/models?q=free](https://openrouter.ai/models?q=free)
 

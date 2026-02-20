@@ -110,12 +110,13 @@ const KEY_TO_DIRECTION: Record<string, Direction> = {
  * Format model ID for display (strip provider prefix and common suffixes)
  *
  * Examples:
- * - "mistralai/devstral-2512:free" -> "devstral-2512"
- * - "meta-llama/llama-3.3-70b-instruct:free" -> "llama-3.3-70b"
- * - "google/gemma-3-12b-it:free" -> "gemma-3-12b"
+ * - "openrouter/free" -> "openrouter/free" (kept as-is)
+ * - "meta-llama/llama-3.3-70b-instruct:free" -> "llama-3.3-70b-instruct"
+ * - "google/gemma-3-12b-it" -> "gemma-3-12b"
  */
-function formatModelName(modelId: string | null): string {
+export function formatModelName(modelId: string | null): string {
   if (!modelId) return '';
+  if (modelId === 'openrouter/free') return 'openrouter/free';
   return modelId
     .replace(/^[^/]+\//, '')                  // Remove provider prefix
     .replace(/(:free|-instruct|-it)$/, '');   // Remove common suffixes
