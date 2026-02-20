@@ -11,6 +11,9 @@ on:
 
 concurrency: ${{ github.workflow }}-${{ github.ref }}
 
+env:
+  NEXT_TELEMETRY_DISABLED: 1
+
 jobs:
   release:
     runs-on: ubuntu-latest
