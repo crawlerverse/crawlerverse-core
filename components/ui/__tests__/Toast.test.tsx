@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, waitFor, act } from '@testing-library/react';
+import { render, screen, act } from '@testing-library/react';
 import { Toast, showToast } from '../Toast';
 
 describe('Toast', () => {
@@ -10,9 +10,7 @@ describe('Toast', () => {
       showToast('Test message');
     });
 
-    await waitFor(() => {
-      expect(screen.getByText('Test message')).toBeInTheDocument();
-    });
+    expect(screen.getByText('Test message')).toBeInTheDocument();
   });
 
   it('should display info toast with correct styling', async () => {
@@ -38,11 +36,7 @@ describe('Toast', () => {
     expect(toast.style.backgroundColor).toBe('var(--danger)');
   });
 
-  it.skip('should auto-dismiss after 5 seconds', async () => {
-    // TODO(CRA-192): This test has issues with fake timers and async rendering
-    // The functionality works in practice, but the test setup is complex
-    // Skipping for now - manual testing confirms auto-dismiss works
-    // See: https://linear.app/crawlerverse/issue/CRA-192
+  it('should auto-dismiss after 5 seconds', async () => {
     vi.useFakeTimers();
 
     try {
@@ -52,13 +46,11 @@ describe('Toast', () => {
         showToast('Test message');
       });
 
-      // Message should be visible
-      await waitFor(() => {
-        expect(screen.getByText('Test message')).toBeInTheDocument();
-      }, { timeout: 100 });
+      // Message should be visible immediately after act
+      expect(screen.getByText('Test message')).toBeInTheDocument();
 
-      // Fast-forward time by 5 seconds
-      act(() => {
+      // Advance fake clock and flush React state updates triggered by the timer
+      await act(async () => {
         vi.advanceTimersByTime(5000);
       });
 
