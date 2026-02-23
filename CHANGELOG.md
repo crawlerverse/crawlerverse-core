@@ -1,5 +1,11 @@
 # @crawlerverse/core
 
+## 0.1.5
+
+### Patch Changes
+
+- 9c5107b: Switch release workflow to OIDC trusted publishing and remove build step
+
 ## 0.1.4
 
 ### Patch Changes
