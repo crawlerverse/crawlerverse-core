@@ -1,5 +1,11 @@
 # @crawlerverse/core
 
+## 0.1.6
+
+### Patch Changes
+
+- 6d428aa: Fix repository URLs in package.json to match renamed repo
+
 ## 0.1.5
 
 ### Patch Changes
