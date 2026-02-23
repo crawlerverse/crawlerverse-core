@@ -62,22 +62,18 @@ jobs:
             exit 1
           fi
 
-      - name: Commit version changes
+      - name: Publish to npm
         if: ${{ !inputs.dry_run }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add .
           git commit -m "chore: release v${{ steps.check_version.outputs.version }}"
-          git push
-
-      - name: Publish to npm
-        if: ${{ !inputs.dry_run }}
-        run: pnpm changeset publish
+          pnpm changeset publish
         env:
           NPM_CONFIG_PROVENANCE: true
 
-      - name: Push git tags
+      - name: Push release commit and tags
         if: ${{ !inputs.dry_run }}
         run: git push --follow-tags
 
