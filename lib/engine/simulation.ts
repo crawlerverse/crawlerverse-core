@@ -80,7 +80,7 @@ import { getItemTemplate, isEquipmentTemplate, type EquipmentTemplate } from './
 import { createLogger } from '../logging';
 import { updateObjectivesForCrawlers } from './objective';
 import { isCrawlerId, toCrawlerId, type CrawlerId } from './crawler-id';
-import { EventType } from './events';
+import { EventType, GameEventEmitter } from './events';
 import { tickEffects, hasEffect, removeEffectsFromSource, type ActiveEffect } from './effects';
 import { getEffectiveVisionRadius } from './stats';
 
@@ -1174,6 +1174,21 @@ export function simulateBubble(
   const maxIterations = options.maxIterations ?? DEFAULT_MAX_ITERATIONS;
   const { gameState } = options;
 
+  // Ensure eventEmitter and eventTracking exist — both are lost when GameState is
+  // serialized/deserialized (e.g. stored in Supabase then loaded back as JSON).
+  // Re-creating them here protects all downstream .emit() and tracking calls.
+  if (!gameState.eventEmitter) {
+    (gameState as { eventEmitter: GameEventEmitter }).eventEmitter = new GameEventEmitter();
+  }
+  if (!gameState.eventTracking) {
+    (gameState as { eventTracking: EventTracking }).eventTracking = {
+      combatState: {},
+      seenMonsterTypes: {},
+      seenPortals: {},
+      entitiesBelowCritical: new Set(),
+    };
+  }
+
   let currentBubble = bubble;
   let currentEntities = { ...entities };
   // Track items throughout simulation (for pickup/drop actions)
@@ -1374,7 +1389,7 @@ export function simulateBubble(
         );
 
         // Detect newly visible monsters
-        if (currentGameState.eventEmitter && currentGameState.eventTracking) {
+        if (currentGameState.eventEmitter && currentGameState.eventTracking && isCrawlerId(updatedActor2.id)) {
           const crawlerId = toCrawlerId(updatedActor2.id);
           const seenTypes = currentGameState.eventTracking.seenMonsterTypes[crawlerId] || new Set();
 
@@ -1407,7 +1422,7 @@ export function simulateBubble(
         }
 
         // Detect newly visible portals
-        if (currentGameState.eventEmitter && currentGameState.eventTracking) {
+        if (currentGameState.eventEmitter && currentGameState.eventTracking && isCrawlerId(updatedActor2.id)) {
           const crawlerId = toCrawlerId(updatedActor2.id);
           const seenPortals = currentGameState.eventTracking.seenPortals[crawlerId] || new Set();
           const currentArea = getCurrentArea(currentGameState);
@@ -1918,6 +1933,20 @@ export function simulate(state: GameState, options?: SimulateOptions): {
   state: GameState;
   waitingFor: EntityId[];
 } {
+  // Ensure eventEmitter and eventTracking exist — both are lost when GameState is
+  // serialized/deserialized (e.g. stored in Supabase then loaded back as JSON).
+  if (!state.eventEmitter) {
+    (state as { eventEmitter: GameEventEmitter }).eventEmitter = new GameEventEmitter();
+  }
+  if (!state.eventTracking) {
+    (state as { eventTracking: EventTracking }).eventTracking = {
+      combatState: {},
+      seenMonsterTypes: {},
+      seenPortals: {},
+      entitiesBelowCritical: new Set(),
+    };
+  }
+
   if (state.bubbles.length === 0) {
     return { state, waitingFor: [] };
   }

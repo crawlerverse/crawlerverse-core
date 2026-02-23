@@ -2639,3 +2639,63 @@ describe('ranged_attack action', () => {
     expect(crawler.equippedOffhand?.quantity).toBe(4);
   });
 });
+
+describe('deserialized state (no eventEmitter)', () => {
+  it('simulate() does not throw when eventEmitter is undefined', () => {
+    const entities = createTestEntities();
+    let bubble = createBubble({
+      id: bubbleId('test'),
+      entityIds: [entityId('player'), entityId('rat')],
+      entities: [
+        { id: entityId('player'), speed: 100 },
+        { id: entityId('rat'), speed: 120 },
+      ],
+      center: { x: 5, y: 5 },
+    });
+
+    // Queue an attack toward the rat (east, adjacent)
+    const action: Action = { action: 'attack', direction: 'east', reasoning: 'test', preRolledD20: 20 };
+    bubble = queueCommand(bubble, entityId('player'), action).bubble;
+
+    // Build state WITHOUT eventEmitter (simulates JSON deserialization)
+    const gameState: GameState = {
+      ...createTestGameState(entities, bubble),
+      eventEmitter: undefined,
+      eventTracking: undefined,
+    };
+
+    // Should not throw TypeError: Cannot read properties of undefined (reading 'emit')
+    expect(() => simulate(gameState)).not.toThrow();
+  });
+
+  it('simulateBubble() does not throw when eventEmitter is undefined', () => {
+    const entities = createTestEntities();
+    // Place rat adjacent to player for combat
+    entities.rat = { ...entities.rat, x: 6, y: 5 };
+
+    let bubble = createBubble({
+      id: bubbleId('test'),
+      entityIds: [entityId('player'), entityId('rat')],
+      entities: [
+        { id: entityId('player'), speed: 100 },
+        { id: entityId('rat'), speed: 120 },
+      ],
+      center: { x: 5, y: 5 },
+    });
+
+    const action: Action = { action: 'attack', direction: 'east', reasoning: 'test', preRolledD20: 20 };
+    bubble = queueCommand(bubble, entityId('player'), action).bubble;
+
+    // Build state WITHOUT eventEmitter (simulates JSON deserialization)
+    const gameState: GameState = {
+      ...createTestGameState(entities, bubble),
+      eventEmitter: undefined,
+      eventTracking: undefined,
+    };
+
+    // Should not throw
+    expect(() => {
+      simulateBubble(bubble, entities, { maxIterations: 10, gameState });
+    }).not.toThrow();
+  });
+});
