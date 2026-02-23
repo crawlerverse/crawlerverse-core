@@ -6,10 +6,10 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/crawlerverse/core.git"
+    "url": "https://github.com/crawlerverse/crawlerverse-core.git"
   },
-  "homepage": "https://github.com/crawlerverse/core#readme",
-  "bugs": "https://github.com/crawlerverse/core/issues",
+  "homepage": "https://github.com/crawlerverse/crawlerverse-core#readme",
+  "bugs": "https://github.com/crawlerverse/crawlerverse-core/issues",
   "keywords": [
     "roguelike",
     "game-engine",
