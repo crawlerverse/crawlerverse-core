@@ -40,9 +40,6 @@ jobs:
       - name: Run tests
         run: pnpm test
 
-      - name: Build package
-        run: pnpm build
-
       - name: Version packages (consume changesets)
         run: pnpm changeset version
 
